@@ -8,6 +8,11 @@ dataPreprocessingWADZ;
 
 calcStatyFlag = 0;
 
+%statySlope sets the limit on the slope of variables to be tested for
+%stationarity; the default value of 0.1 corresponds to a slope that varies
+%by no more than 10% of the mean value over the duration of a record.
+paramStruc.statySlope = 0.1;
+
 %New analysis Mar 26
 %Note that burstMaxBins will only exist in the workspace if you've already
 %looped over all bursts in your current session; if not it has to be
@@ -43,15 +48,13 @@ for burstCtr = burstStartIndex:burstEndIndex;
         end
     end
 
-    ITSStruc(1).isStationaryP95 = RATestWrapper(burstBeamVelocities,minNind,paramStruc,burstCtr);
+    ITSStruc(1).isStationaryP95(burstCtr) = statySlopeTest(burstBeamVelocities,minNind,paramStruc);
 
     if rem(burstCtr,10) == 0,
         fprintf("Burst # is %d \r",burstCtr)
     end
 
 end
-
-
 
 %%
 %Plot the integral time scales
