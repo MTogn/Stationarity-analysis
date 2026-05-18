@@ -1,4 +1,4 @@
-function isStationaryP95 = statySlopeTest(burstBeamVelocities,idxLength,paramStruc)
+function stationaryTestParams = statySlopeTest(burstBeamVelocities,idxLength,paramStruc)
 
 indSampIndLength = floor(max(size(burstBeamVelocities(1).beamVel))./idxLength);
 
@@ -13,15 +13,25 @@ for zCtr = 1:length(idxLength)
         sampEndInd = sampCtr*indSampIndLength(zCtr);
     end
 
-%Calculate max permissible slope
-    velMagMaxSlope(zCtr) = paramStruc.statySlope*mean(velMagSeq(zCtr,1:idxLength(zCtr)));
-    TKEMaxSlope(zCtr) = paramStruc.statySlope*mean(TKESeq(zCtr,1:idxLength(zCtr)));
+%Generate linear fit for velocity
+    velMagFitVals = velMagSeq(zCtr,:)';
+    timeSeqFitVals = timeSeq(zCtr,:)'; timeSeqFitVals = [ones(size(timeSeqFitVals)), timeSeqFitVals];
+    [b,bint] = regress(velMagFitVals,timeSeqFitVals);
 
-%Generate linear fit
-    [b,bint,r,rint,stats] = regress(velMagSeq(zCtr,:),timeSeq(zCtr,sampCtr));
+%Assign outputs
+    stationaryTestParams(zCtr).bestFitSlopeVel = b(2);
+    stationaryTestParams(zCtr).p95SlopeLimsVel = bint(2,:);
+    stationaryTestParams(zCtr).isNonZeroSlopeP95Vel = ~((bint(2,1) < 0) & (bint(2,2) > 0));
+    stationaryTestParams(zCtr).exceedsMaxSlopeVel = 60*abs(b(2)) > paramStruc.statySlope*mean(velMagFitVals);
 
-%Placeholder line to assign something to the output
-    isStationaryP95(zCtr).stats = stats;
+%Repeat for TKE
+    TKEFitVals = TKESeq(zCtr,:)';
+    [b,bint] = regress(TKEFitVals,timeSeqFitVals);
+
+    stationaryTestParams(zCtr).bestFitSlopeTKE = b(2);
+    stationaryTestParams(zCtr).p95SlopeLimsTKE = bint(2,:);
+    stationaryTestParams(zCtr).isNonZeroSlopeP95TKE = ~((bint(2,1) < 0) & (bint(2,2) > 0));
+    stationaryTestParams(zCtr).exceedsMaxSlopeTKE = 60*abs(b(2)) > paramStruc.statySlope*mean(TKEFitVals);
 end
 
 end

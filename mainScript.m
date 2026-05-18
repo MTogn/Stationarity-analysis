@@ -43,7 +43,7 @@ for burstCtr = burstStartIndex:burstEndIndex;
         end
     end
 
-    ITSStruc(1).isStationaryP95(burstCtr) = statySlopeTest(burstBeamVelocities,minNind,paramStruc);
+    ITSStruc(1).isStationary(burstCtr,:) = statySlopeTest(burstBeamVelocities,minNind,paramStruc);
 
     if rem(burstCtr,10) == 0,
         fprintf("Burst # is %d \r",burstCtr)
