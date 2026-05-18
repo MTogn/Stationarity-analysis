@@ -40,10 +40,19 @@ for burstCtr = burstStartIndex:burstEndIndex;
             [~,ITSStruc(beamCtr).beamITS(burstCtr,zCtr)] = calcIntScales(burstBeamVelocities(beamCtr).beamVel(:,zCtr),paramStruc.sampFreq,0);
             ITSStruc(beamCtr).numIndRealisns(burstCtr,zCtr) = floor(paramStruc.burstDurn/ITSStruc(beamCtr).beamITS(burstCtr,zCtr));
             minNind(zCtr) = min(minNind(zCtr),ITSStruc(beamCtr).numIndRealisns(burstCtr,zCtr));
+    %For some cases the number of independent realisations gets very high
+    %because of low-correlation data (possibly erroneous) - this can lead
+    %to calls to statySlopeTest with segments that are too short. We
+    %therefore cap minNind so that each segment has at least ten data
+    %points.
+            minNind(zCtr) = min(minNind(zCtr),paramStruc.burstDurn*paramStruc.sampFreq/10);
         end
     end
 
-    ITSStruc(1).isStationary(burstCtr,:) = statySlopeTest(burstBeamVelocities,minNind,paramStruc);
+    %Note that burstMaxBins(burstCtr) is assigned a value in the call to
+    %burstLoadingWADZ above within this burst loop - if this is removed,
+    %the behaviour of this call will become unpredictable.
+    ITSStruc(1).isStationary(burstCtr,1:burstMaxBins(burstCtr)) = statySlopeTest(burstBeamVelocities,minNind,paramStruc);
 
     if rem(burstCtr,10) == 0,
         fprintf("Burst # is %d \r",burstCtr)

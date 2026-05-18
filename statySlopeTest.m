@@ -32,6 +32,7 @@ for zCtr = 1:length(idxLength)
     stationaryTestParams(zCtr).p95SlopeLimsTKE = bint(2,:);
     stationaryTestParams(zCtr).isNonZeroSlopeP95TKE = ~((bint(2,1) < 0) & (bint(2,2) > 0));
     stationaryTestParams(zCtr).exceedsMaxSlopeTKE = 60*abs(b(2)) > paramStruc.statySlope*mean(TKEFitVals);
+
 end
 
 end

@@ -8,11 +8,6 @@ dataPreprocessingWADZ;
 
 calcStatyFlag = 0;
 
-%statySlope sets the limit on the slope of variables to be tested for
-%stationarity; the default value of 0.1 corresponds to a slope that varies
-%by no more than 10% of the mean value over the duration of a record.
-paramStruc.statySlope = 0.1;
-
 %New analysis Mar 26
 %Note that burstMaxBins will only exist in the workspace if you've already
 %looped over all bursts in your current session; if not it has to be
@@ -45,10 +40,16 @@ for burstCtr = burstStartIndex:burstEndIndex;
             [~,ITSStruc(beamCtr).beamITS(burstCtr,zCtr)] = calcIntScales(burstBeamVelocities(beamCtr).beamVel(:,zCtr),paramStruc.sampFreq,0);
             ITSStruc(beamCtr).numIndRealisns(burstCtr,zCtr) = floor(paramStruc.burstDurn/ITSStruc(beamCtr).beamITS(burstCtr,zCtr));
             minNind(zCtr) = min(minNind(zCtr),ITSStruc(beamCtr).numIndRealisns(burstCtr,zCtr));
+    %For some cases the number of independent realisations gets very high
+    %because of low-correlation data (possibly erroneous) - this can lead
+    %to calls to statySlopeTest with segments that are too short. We
+    %therefore cap minNind so that each segment has at least ten data
+    %points.
+            minNind(zCtr) = min(minNind(zCtr),paramStruc.burstDurn*paramStruc.sampFreq/10);
         end
     end
 
-    ITSStruc(1).isStationaryP95(burstCtr) = statySlopeTest(burstBeamVelocities,minNind,paramStruc);
+    ITSStruc(1).isStationary(burstCtr,:) = statySlopeTest(burstBeamVelocities,minNind,paramStruc);
 
     if rem(burstCtr,10) == 0,
         fprintf("Burst # is %d \r",burstCtr)
