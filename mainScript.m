@@ -12,7 +12,8 @@ calcStatyFlag = 0;
 %Note that burstMaxBins will only exist in the workspace if you've already
 %looped over all bursts in your current session; if not it has to be
 %estimated from the raw depths loaded in dataPreprocessingWADZ. These
-%values should be the same.
+%values should be the same, but if not maxNumBins is updated at the end of
+%the burst loop below.
 switch exist('burstMaxBins')
     case 1
         maxNumBins = max(burstMaxBins);
@@ -59,6 +60,7 @@ for burstCtr = burstStartIndex:burstEndIndex;
     end
 
 end
+maxNumBins = max(burstMaxBins);
 
 %%
 %Plot the integral time scales
@@ -131,6 +133,10 @@ if ~exist('velMag')
 
     end
 end
+%If velMag already existed and was not created by the previous burst
+%loading loop, this line ensures that it is oriented correctly for the
+%contour plot visualisation below
+if size(velMag,2) ~= burstEndIndex, velMag = velMag'; end
 
 %Visualise velocity magnitude
 plotParams.HASBVec = paramStruc.blankDist + paramStruc.binVertSize*(0:size(burstBeamVelocities(1).beamVel,2));
@@ -148,7 +154,13 @@ if size(velMag,1) ~= size(ITSStruc(1).beamITS,1), velMag = velMag'; end
 velMagVec = velMag(:);
 velITSScatterFigHand = figure;
 for beamCtr = 1:4
-    ITSStruc(beamCtr).beamITSVec = ITSStruc(beamCtr).beamITS(:);
+    %If beamITS was calculated when burstMaxBins did not already exist in
+    %the workspace, then it may have been calculated with a conservatively
+    %larger estimate of the maximum bin number. To ensure compatible sizes
+    %for the scatter plot, we truncate the beamITS fields along the depth
+    %axis before flattening.
+    ITSStruc(beamCtr).beamITSVec = ITSStruc(beamCtr).beamITS(:,1:max(burstMaxBins));
+    ITSStruc(beamCtr).beamITSVec = ITSStruc(beamCtr).beamITSVec(:);
     velITSScatterAxHand(beamCtr) = subplot(2,2,beamCtr);
     %Points with value (0,0) correspond to burst numbers where no good data
     %was collected, or points above the surface for times where water level
@@ -180,12 +192,11 @@ wholeFigAx.FontSize = 16;
 %calculated and stored elsewhere
 load('C:\Users\michael\Documents\ADCP\DEMOZONE\burstWaveHeights.mat');
 burstWaveHeightsDespiked = burstWaveHeightsDespiked';
-burstWaveHeightsDespiked = repmat(burstWaveHeightsDespiked,1,size(ITSStruc(1).beamITS,2));
+burstWaveHeightsDespiked = repmat(burstWaveHeightsDespiked,1,max(burstMaxBins));
 
 waveHeightsVec = burstWaveHeightsDespiked(:)/100;
 waveITSScatterFigHand = figure;
 for beamCtr = 1:4
-    ITSStruc(beamCtr).beamITSVec = ITSStruc(beamCtr).beamITS(:);
     waveITSScatterAxHand(beamCtr) = subplot(2,2,beamCtr);
     %Points with value (0,0) correspond to burst numbers where no good data
     %was collected, or points above the surface for times where water level
@@ -221,11 +232,14 @@ for beamCtr = 1:4
     %was collected, or points above the surface for times where water level
     %is lower: they are therefore excluded from the plot
     velMagVec_realPointsOnly = velMagVec((velMagVec ~= 0) & (ITSStruc(beamCtr).beamITSVec ~= 0));
-    waveHeightsVec_realPointsOnly = waveHeightsVec((waveHeightsVec ~= 0) & (ITSStruc(beamCtr).beamITSVec ~= 0));
     beamITSVec_realPointsOnly = ITSStruc(beamCtr).beamITSVec((velMagVec ~= 0) & (ITSStruc(beamCtr).beamITSVec ~= 0));
-    [tempcorr,tempsig] = corrcoef(velMagVec_realPointsOnly,beamITSVec_realPointsOnly);
+    %Setting the argument 'Rows' to 'complete' omits any NaN values from
+    %the calculation
+    [tempcorr,tempsig] = corrcoef(velMagVec_realPointsOnly,beamITSVec_realPointsOnly,'Rows','complete');
     ITSStruc(beamCtr).velMagCorreln = tempcorr(1,2); ITSStruc(beamCtr).velMagCorrelnP = tempsig(1,2);
-    [tempcorr,tempsig] = corrcoef(waveHeightsVec_realPointsOnly,beamITSVec_realPointsOnly);
+    waveHeightsVec_realPointsOnly = waveHeightsVec((waveHeightsVec ~= 0) & (ITSStruc(beamCtr).beamITSVec ~= 0));
+    beamITSVec_realPointsOnly = ITSStruc(beamCtr).beamITSVec((waveHeightsVec ~= 0) & (ITSStruc(beamCtr).beamITSVec ~= 0));
+    [tempcorr,tempsig] = corrcoef(waveHeightsVec_realPointsOnly,beamITSVec_realPointsOnly,'Rows','complete');
     ITSStruc(beamCtr).waveHeightCorreln = tempcorr(1,2); ITSStruc(beamCtr).waveHeightCorrelnP = tempsig(1,2);
 end
 %%

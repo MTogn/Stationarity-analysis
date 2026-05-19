@@ -12,7 +12,8 @@ calcStatyFlag = 0;
 %Note that burstMaxBins will only exist in the workspace if you've already
 %looped over all bursts in your current session; if not it has to be
 %estimated from the raw depths loaded in dataPreprocessingWADZ. These
-%values should be the same.
+%values should be the same, but if not maxNumBins is updated at the end of
+%the burst loop below.
 switch exist('burstMaxBins')
     case 1
         maxNumBins = max(burstMaxBins);
@@ -49,13 +50,17 @@ for burstCtr = burstStartIndex:burstEndIndex;
         end
     end
 
-    ITSStruc(1).isStationary(burstCtr,:) = statySlopeTest(burstBeamVelocities,minNind,paramStruc);
+    %Note that burstMaxBins(burstCtr) is assigned a value in the call to
+    %burstLoadingWADZ above within this burst loop - if this is removed,
+    %the behaviour of this call will become unpredictable.
+    ITSStruc(1).isStationary(burstCtr,1:burstMaxBins(burstCtr)) = statySlopeTest(burstBeamVelocities,minNind,paramStruc);
 
     if rem(burstCtr,10) == 0,
         fprintf("Burst # is %d \r",burstCtr)
     end
 
 end
+maxNumBins = max(burstMaxBins);
 
 %%
 %Plot the integral time scales
@@ -145,7 +150,11 @@ if size(velMag,1) ~= size(ITSStruc(1).beamITS,1), velMag = velMag'; end
 velMagVec = velMag(:);
 velITSScatterFigHand = figure;
 for beamCtr = 1:4
-    ITSStruc(beamCtr).beamITSVec = ITSStruc(beamCtr).beamITS(:);
+    %If beamITS was calculated where burstMaxBins did not already exist in
+    %the workspace, then it may have been calculated with a conservatively
+    %larger estimate of the maximum bin 
+    ITSStruc(beamCtr).beamITSVec = ITSStruc(beamCtr).beamITS(:,1:max(burstMaxBins));
+    ITSStruc(beamCtr).beamITSVec = ITSStruc(beamCtr).beamITSVec(:);
     velITSScatterAxHand(beamCtr) = subplot(2,2,beamCtr);
     %Points with value (0,0) correspond to burst numbers where no good data
     %was collected, or points above the surface for times where water level
