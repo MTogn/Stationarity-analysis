@@ -1,3 +1,24 @@
+%This function creates a figure containing four subfigures, each of which
+%has a contour plot of the integral time scales for the four off-vertical
+%beams of an ADCP across the duration of a deployment
+
+%Inputs:
+% - ITSDataStruc must be a structure with at least four entries
+% ITSDataStruc(1:4). Each entry must have an array field beamITS containing
+% the integral time scales for that beam; this field should be of the shape
+% (1:burstEndIndex,1:maxNumBins), where maxNumBins is the maximum number of
+% depth bins across the deployment duration
+% - plotParams must be a structure containing at least the fields HASBVec
+% (a 1D array containing maxNumBins elements corresponding to the height
+% above seabed for each of the measurement bins) and timeVec (a 1D array
+% containing burstEndIndex elements which are the datetimes corresponding
+% to each burst in the deployment).
+% - burstStartIndex and burstEndIndex are the numbers of the first and last
+% burst that you want to visualise in the figure (e.g., if some bursts near
+% the start or end of the record contain bad data)
+%Outputs:
+% - ITSFigHand and ITSAxHand are the object handles for the figure and the 
+% four subfigure axes respectively
 function [ITSFigHand,ITSAxHand] = contourPlotITS(ITSDataStruc,plotParams,burstStartIndex,burstEndIndex)
 
     [HASBArr,timeArr] = meshgrid(plotParams.HASBVec,plotParams.timeVec);

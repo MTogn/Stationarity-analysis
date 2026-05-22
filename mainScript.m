@@ -1,6 +1,8 @@
 % addpath('C:\Users\michael\Documents\WTIMTS\analysisCode\WADZSpecificScripts');
 % addpath('C:\Users\michael\Documents\WTIMTS\analysisCode');
 
+clear all
+
 burstStartIndex = 5;
 burstEndIndex = 1470;
 
@@ -8,6 +10,7 @@ dataPreprocessingWADZ;
 
 calcStatyFlag = 0;
 makeITSContPlots = 0;
+makeVelMagContPlots = 1;
 
 %New analysis Mar 26
 %Note that burstMaxBins will only exist in the workspace if you've already
@@ -25,43 +28,48 @@ for beamCtr = 1:4
     ITSStruc(beamCtr).beamITS = nan(burstEndIndex,maxNumBins);
 end
 
-for burstCtr = burstStartIndex:burstEndIndex;
-    burstLoadingWADZ;
+%Inside a switch call to avoid repeating the most computationally-intensive
+%part of the code for a rerun if the variable already exists in the workspace.
+switch isfield(ITSStruc,'isStationary')
+    case 0
+        for burstCtr = burstStartIndex:burstEndIndex;
+            burstLoadingWADZ;
 
-    switch calcStatyFlag
-        case 1
-            beamVarStationarities(burstCtr) = checkVarTKEStationarity(burstBeamVelocities,paramStruc);
-    end
+            switch calcStatyFlag
+                case 1
+                    beamVarStationarities(burstCtr) = checkVarTKEStationarity(burstBeamVelocities,paramStruc);
+            end
 
-    %minNind is the minimum number of independent realisations across all
-    %four beams, used as a conservative estimate of the Nind for derived
-    %quantities (velocity magnitude, TKE etc).
-    minNind = nan(1,size(burstBeamVelocities(1).beamVel,2));
-    for zCtr = 1:size(burstBeamVelocities(1).beamVel,2)
-        for beamCtr = 1:4
-            [~,ITSStruc(beamCtr).beamITS(burstCtr,zCtr)] = calcIntScales(burstBeamVelocities(beamCtr).beamVel(:,zCtr),paramStruc.sampFreq,0);
-            ITSStruc(beamCtr).numIndRealisns(burstCtr,zCtr) = floor(paramStruc.burstDurn/ITSStruc(beamCtr).beamITS(burstCtr,zCtr));
-            minNind(zCtr) = min(minNind(zCtr),ITSStruc(beamCtr).numIndRealisns(burstCtr,zCtr));
-    %For some cases the number of independent realisations gets very high
-    %because of low-correlation data (possibly erroneous) - this can lead
-    %to calls to statySlopeTest with segments that are too short. We
-    %therefore cap minNind so that each segment has at least ten data
-    %points.
-            minNind(zCtr) = min(minNind(zCtr),paramStruc.burstDurn*paramStruc.sampFreq/10);
+            %minNind is the minimum number of independent realisations across all
+            %four beams, used as a conservative estimate of the Nind for derived
+            %quantities (velocity magnitude, TKE etc).
+            minNind = nan(1,size(burstBeamVelocities(1).beamVel,2));
+            for zCtr = 1:size(burstBeamVelocities(1).beamVel,2)
+                for beamCtr = 1:4
+                    [~,ITSStruc(beamCtr).beamITS(burstCtr,zCtr)] = calcIntScales(burstBeamVelocities(beamCtr).beamVel(:,zCtr),paramStruc.sampFreq,0);
+                    ITSStruc(beamCtr).numIndRealisns(burstCtr,zCtr) = floor(paramStruc.burstDurn/ITSStruc(beamCtr).beamITS(burstCtr,zCtr));
+                    minNind(zCtr) = min(minNind(zCtr),ITSStruc(beamCtr).numIndRealisns(burstCtr,zCtr));
+                    %For some cases the number of independent realisations gets very high
+                    %because of low-correlation data (possibly erroneous) - this can lead
+                    %to calls to statySlopeTest with segments that are too short. We
+                    %therefore cap minNind so that each segment has at least ten data
+                    %points.
+                    minNind(zCtr) = min(minNind(zCtr),paramStruc.burstDurn*paramStruc.sampFreq/10);
+                end
+            end
+
+            %Note that burstMaxBins(burstCtr) is assigned a value in the call to
+            %burstLoadingWADZ above within this burst loop - if this is removed,
+            %the behaviour of this call will become unpredictable.
+            ITSStruc(1).isStationary(burstCtr,1:burstMaxBins(burstCtr)) = statySlopeTest(burstBeamVelocities,minNind,paramStruc);
+
+            if rem(burstCtr,10) == 0,
+                fprintf("Burst # is %d \r",burstCtr)
+            end
+
         end
-    end
-
-    %Note that burstMaxBins(burstCtr) is assigned a value in the call to
-    %burstLoadingWADZ above within this burst loop - if this is removed,
-    %the behaviour of this call will become unpredictable.
-    ITSStruc(1).isStationary(burstCtr,1:burstMaxBins(burstCtr)) = statySlopeTest(burstBeamVelocities,minNind,paramStruc);
-
-    if rem(burstCtr,10) == 0,
-        fprintf("Burst # is %d \r",burstCtr)
-    end
-
+        maxNumBins = max(burstMaxBins);
 end
-maxNumBins = max(burstMaxBins);
 
 %Optionally make contour plots of the integral time scales, controlled by
 %the flag makeITSContPlots
@@ -74,10 +82,8 @@ switch makeITSContPlots
 end
 
 %%
-%This section worked at visualising velocity magnitude but I think that
-%there is no strong link here, so it's not been fully developed.
 
-%Compare integral time scales to mean flow velocities
+%Check whether velMag already exists and generate it if not.
 if ~exist('velMag')
     for burstCtr = burstStartIndex:burstEndIndex
         burstLoadingWADZ
@@ -91,23 +97,15 @@ if ~exist('velMag')
 
     end
 end
-%If velMag already existed and was not created by the previous burst
-%loading loop, this line ensures that it is oriented correctly for the
-%contour plot visualisation below
-if size(velMag,2) ~= burstEndIndex, velMag = velMag'; end
 
-%Visualise velocity magnitude
-plotParams.HASBVec = paramStruc.blankDist + paramStruc.binVertSize*(0:size(burstBeamVelocities(1).beamVel,2));
-plotParams.timeVec = wholeRecordDatenums(1,burstStartIndex:burstEndIndex);
-[HASBArr,timeArr] = meshgrid(plotParams.HASBVec,plotParams.timeVec);
-velMagFigHand = figure;
-contourf(timeArr',HASBArr',velMag(1:length(plotParams.HASBVec),burstStartIndex:burstEndIndex),'LineStyle','none');
-set(gca,'FontSize',14)
-datetick('x','mmm-dd','keepticks','keeplimits')
+switch makeVelMagContPlots
+    case 1
+        velMagFigHand = contourPlotVelMag(velMag,plotParams,burstStartIndex,burstEndIndex)
+end
 
 %For a scatter plot, the velocity magnitude array and ITS arrays should be
-%made into column vectors; to ensure these are consistent their dimensions
-%must be consistent with one another.
+%made into column vectors; to ensure a comparison is meaninful their
+%dimensions must be consistent with one another.
 if size(velMag,1) ~= size(ITSStruc(1).beamITS,1), velMag = velMag'; end
 velMagVec = velMag(:);
 velITSScatterFigHand = figure;
