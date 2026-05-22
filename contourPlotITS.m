@@ -5,9 +5,9 @@
 %Inputs:
 % - ITSDataStruc must be a structure with at least four entries
 % ITSDataStruc(1:4). Each entry must have an array field beamITS containing
-% the integral time scales for that beam; this field should be of the shape
-% (1:burstEndIndex,1:maxNumBins), where maxNumBins is the maximum number of
-% depth bins across the deployment duration
+% the integral time scales for the corresponding ADCP beam; this field
+% should be of the shape (1:burstEndIndex,1:maxNumBins), where maxNumBins
+% is the maximum number of depth bins across the deployment duration.
 % - plotParams must be a structure containing at least the fields HASBVec
 % (a 1D array containing maxNumBins elements corresponding to the height
 % above seabed for each of the measurement bins) and timeVec (a 1D array

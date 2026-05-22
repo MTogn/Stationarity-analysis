@@ -1,6 +1,8 @@
 % addpath('C:\Users\michael\Documents\WTIMTS\analysisCode\WADZSpecificScripts');
 % addpath('C:\Users\michael\Documents\WTIMTS\analysisCode');
 
+clear all
+
 burstStartIndex = 5;
 burstEndIndex = 1470;
 
@@ -8,6 +10,7 @@ dataPreprocessingWADZ;
 
 calcStatyFlag = 0;
 makeITSContPlots = 0;
+makeVelMagContPlots = 1;
 
 %New analysis Mar 26
 %Note that burstMaxBins will only exist in the workspace if you've already
@@ -26,7 +29,7 @@ for beamCtr = 1:4
 end
 
 %Inside a switch call to avoid repeating the most computationally-intensive
-%part of the code for a rerun if the variable already exists.
+%part of the code for a rerun if the variable already exists in the workspace.
 switch isfield(ITSStruc,'isStationary')
     case 0
         for burstCtr = burstStartIndex:burstEndIndex;
@@ -95,106 +98,24 @@ if ~exist('velMag')
     end
 end
 
-switch makeITSContPlots
+switch makeVelMagContPlots
     case 1
         velMagFigHand = contourPlotVelMag(velMag,plotParams,burstStartIndex,burstEndIndex)
 end
 
-%For a scatter plot, the velocity magnitude array and ITS arrays should be
-%made into column vectors; to ensure a comparison is meaninful their
-%dimensions must be consistent with one another.
-if size(velMag,1) ~= size(ITSStruc(1).beamITS,1), velMag = velMag'; end
-velMagVec = velMag(:);
-velITSScatterFigHand = figure;
-for beamCtr = 1:4
-    %If beamITS was calculated when burstMaxBins did not already exist in
-    %the workspace, then it may have been calculated with a conservatively
-    %larger estimate of the maximum bin number. To ensure compatible sizes
-    %for the scatter plot, we truncate the beamITS fields along the depth
-    %axis before flattening.
-    ITSStruc(beamCtr).beamITSVec = ITSStruc(beamCtr).beamITS(:,1:max(burstMaxBins));
-    ITSStruc(beamCtr).beamITSVec = ITSStruc(beamCtr).beamITSVec(:);
-    velITSScatterAxHand(beamCtr) = subplot(2,2,beamCtr);
-    %Points with value (0,0) correspond to burst numbers where no good data
-    %was collected, or points above the surface for times where water level
-    %is lower: they are therefore excluded from the plot
-    velMagVec_realPointsOnly = velMagVec((velMagVec ~= 0) & (ITSStruc(beamCtr).beamITSVec ~= 0));
-    beamITSVec_realPointsOnly = ITSStruc(beamCtr).beamITSVec((velMagVec ~= 0) & (ITSStruc(beamCtr).beamITSVec ~= 0));
-    scatter(velMagVec_realPointsOnly,beamITSVec_realPointsOnly,'Marker','.')
-    velITSScatterAxHand(beamCtr).Title.String = strcat("Beam ",int2str(beamCtr));
-    velITSScatterAxHand(beamCtr).FontSize = 14;
-end
-%Unify the limits of the y-scatter
-scatterYLim = get(velITSScatterAxHand(1),'YLim'); scatterYLimLo = scatterYLim(1); scatterYLimHi = scatterYLim(2);
-for beamCtr = 2:4
-    scatterYLim = get(velITSScatterAxHand(beamCtr),'YLim');
-    if scatterYLim(1) < scatterYLimLo, scatterYLimLo = scatterYLim(1); end
-    if scatterYLim(2) > scatterYLimHi, scatterYLimHi = scatterYLim(2); end
-end
-scatterYLim = [scatterYLimLo, scatterYLimHi];
-for beamCtr = 1:4
-    set(velITSScatterAxHand(beamCtr),'YLim',scatterYLim);
-end
-
-wholeFigAx = axes(gcf,'visible','off');
-wholeFigAx.YLabel.Visible = 'on'; ylabel(wholeFigAx,'Integral time scale (s)');
-wholeFigAx.XLabel.Visible = 'on'; xlabel(wholeFigAx,'Mean velocity magnitude (ms^{-1})');
-wholeFigAx.FontSize = 16;
-
-%Here we compare ITS with wave height, assuming that it's already been
-%calculated and stored elsewhere
+switch makeITSVelWaveScatter
+    case 1
+%Here we load the wave height record to compare with ITS, assuming that
+%it's already been calculated and stored elsewhere.
 load('C:\Users\michael\Documents\ADCP\DEMOZONE\burstWaveHeights.mat');
 burstWaveHeightsDespiked = burstWaveHeightsDespiked';
 burstWaveHeightsDespiked = repmat(burstWaveHeightsDespiked,1,max(burstMaxBins));
 
-waveHeightsVec = burstWaveHeightsDespiked(:)/100;
-waveITSScatterFigHand = figure;
-for beamCtr = 1:4
-    waveITSScatterAxHand(beamCtr) = subplot(2,2,beamCtr);
-    %Points with value (0,0) correspond to burst numbers where no good data
-    %was collected, or points above the surface for times where water level
-    %is lower: they are therefore excluded from the plot
-    waveHeightsVec_realPointsOnly = waveHeightsVec((waveHeightsVec ~= 0) & (ITSStruc(beamCtr).beamITSVec ~= 0));
-    beamITSVec_realPointsOnly = ITSStruc(beamCtr).beamITSVec((waveHeightsVec ~= 0) & (ITSStruc(beamCtr).beamITSVec ~= 0));
-    scatter(waveHeightsVec_realPointsOnly,beamITSVec_realPointsOnly,'Marker','.')
-    waveITSScatterAxHand(beamCtr).Title.String = strcat("Beam ",int2str(beamCtr));
-    waveITSScatterAxHand(beamCtr).FontSize = 14;
-end
-%Unify the limits of the y-scatter
-scatterYLim = get(waveITSScatterAxHand(1),'YLim'); scatterYLimLo = scatterYLim(1); scatterYLimHi = scatterYLim(2);
-for beamCtr = 2:4
-    scatterYLim = get(waveITSScatterAxHand(beamCtr),'YLim');
-    if scatterYLim(1) < scatterYLimLo, scatterYLimLo = scatterYLim(1); end
-    if scatterYLim(2) > scatterYLimHi, scatterYLimHi = scatterYLim(2); end
-end
-scatterYLim = [scatterYLimLo, scatterYLimHi];
-for beamCtr = 1:4
-    set(waveITSScatterAxHand(beamCtr),'YLim',scatterYLim);
+[velITSScatterFigHand2,velITSScatterAxHand2,waveITSScatterFigHand2,waveITSScatterAxHand2,ITSStruc] = ...
+    ITSVelWaveScatter(ITSStruc,velMag,burstWaveHeightsDespiked,burstMaxBins);
 end
 
-wholeFigAx = axes(gcf,'visible','off');
-wholeFigAx.YLabel.Visible = 'on'; ylabel(wholeFigAx,'Integral time scale (s)');
-wholeFigAx.XLabel.Visible = 'on'; xlabel(wholeFigAx,'Significant wave height (m)');
-wholeFigAx.FontSize = 16;
 
-%Check the correlation coefficients of the ITS-vel mag and ITS-wave height
-%scatters; the significance levels are in the corresponding variable names
-%appended with P.
-for beamCtr = 1:4
-    %Points with value (0,0) correspond to burst numbers where no good data
-    %was collected, or points above the surface for times where water level
-    %is lower: they are therefore excluded from the plot
-    velMagVec_realPointsOnly = velMagVec((velMagVec ~= 0) & (ITSStruc(beamCtr).beamITSVec ~= 0));
-    beamITSVec_realPointsOnly = ITSStruc(beamCtr).beamITSVec((velMagVec ~= 0) & (ITSStruc(beamCtr).beamITSVec ~= 0));
-    %Setting the argument 'Rows' to 'complete' omits any NaN values from
-    %the calculation
-    [tempcorr,tempsig] = corrcoef(velMagVec_realPointsOnly,beamITSVec_realPointsOnly,'Rows','complete');
-    ITSStruc(beamCtr).velMagCorreln = tempcorr(1,2); ITSStruc(beamCtr).velMagCorrelnP = tempsig(1,2);
-    waveHeightsVec_realPointsOnly = waveHeightsVec((waveHeightsVec ~= 0) & (ITSStruc(beamCtr).beamITSVec ~= 0));
-    beamITSVec_realPointsOnly = ITSStruc(beamCtr).beamITSVec((waveHeightsVec ~= 0) & (ITSStruc(beamCtr).beamITSVec ~= 0));
-    [tempcorr,tempsig] = corrcoef(waveHeightsVec_realPointsOnly,beamITSVec_realPointsOnly,'Rows','complete');
-    ITSStruc(beamCtr).waveHeightCorreln = tempcorr(1,2); ITSStruc(beamCtr).waveHeightCorrelnP = tempsig(1,2);
-end
 %%
 %Overall mean profiles of scaled variance and TKE to visualise stationarity
 cmnDepthProfLgth = length(beamVarStationarities(burstStartIndex).b1Var);
