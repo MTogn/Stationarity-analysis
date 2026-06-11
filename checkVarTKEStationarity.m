@@ -1,4 +1,4 @@
-function beamVarStationarities = checkVarTKEStationarity(burstBeamVelocities,paramStruc,statyDurations)
+function statyOutputStruc = checkVarTKEStationarity(burstBeamVelocities,paramStruc,statyDurations)
 
 arguments
     burstBeamVelocities
@@ -12,21 +12,25 @@ end
 
 %statyIndices must be int-valued.
 statyIndices = round(statyDurations*paramStruc.sampFreq);
+beamVar = nan(4,size(burstBeamVelocities(1).beamVel,2));
+beamVarStaty = nan(4,size(burstBeamVelocities(1).beamVel,2),length(statyIndices));
+beamVarStatyScaled = beamVarStaty;
 for beamCtr = 1:4
-    beamVarStatyStruc(beamCtr).beamVar = var(burstBeamVelocities(beamCtr).beamVel,1,1);
-    beamVarStatyStruc(beamCtr).beamVarStaty = nan(length(statyIndices),size(beamVarStatyStruc(beamCtr).beamVar,2));
+    beamVar(beamCtr,:) = var(burstBeamVelocities(beamCtr).beamVel,1,1);
     for lengthCtr = 1:length(statyIndices)
-        beamVarStatyStruc(beamCtr).beamVarStaty(lengthCtr,:) = var(burstBeamVelocities(beamCtr).beamVel(1:statyIndices(lengthCtr),:),1,1);
+        beamVarStaty(beamCtr,:,lengthCtr) = var(burstBeamVelocities(beamCtr).beamVel(1:statyIndices(lengthCtr),:),1,1);
     end
-    beamVarStatyStruc(beamCtr).beamVarStatyScaled = beamVarStatyStruc(beamCtr).beamVarStaty./repmat(beamVarStatyStruc(beamCtr).beamVar,4,1);
+    beamVarStatyScaled = beamVarStaty./repmat(beamVar(beamCtr,:),[1 1 4]);
 end
-burst4BeamTKEStruc.fourBeamTKE = beamVarStatyStruc(1).beamVar + beamVarStatyStruc(2).beamVar + beamVarStatyStruc(3).beamVar + beamVarStatyStruc(4).beamVar;
-burst4BeamTKEStruc.fourBeamTKE = burst4BeamTKEStruc.fourBeamTKE/(4*(sin(paramStruc.beamAngle)^2)*(1 + (2*(cot(paramStruc.beamAngle)^2) - 1)*paramStruc.anisoParam));
-burst4BeamTKEStruc.fourBeamTKEStaty = beamVarStatyStruc(1).beamVarStaty + beamVarStatyStruc(2).beamVarStaty + beamVarStatyStruc(3).beamVarStaty + beamVarStatyStruc(4).beamVarStaty;
-burst4BeamTKEStruc.fourBeamTKEStaty = burst4BeamTKEStruc.fourBeamTKEStaty/(4*(sin(paramStruc.beamAngle)^2)*(1 + (2*(cot(paramStruc.beamAngle)^2) - 1)*paramStruc.anisoParam));
-burst4BeamTKEStruc.fourBeamTKEStatyScaled = burst4BeamTKEStruc.fourBeamTKEStaty./repmat(burst4BeamTKEStruc.fourBeamTKE,4,1);
+fourBeamTKE = sum(beamVar,1)/(4*(sin(paramStruc.beamAngle)^2)*(1 + (2*(cot(paramStruc.beamAngle)^2) - 1)*paramStruc.anisoParam));
+fourBeamTKEStaty = sum(beamVarStaty,1)/(4*(sin(paramStruc.beamAngle)^2)*(1 + (2*(cot(paramStruc.beamAngle)^2) - 1)*paramStruc.anisoParam));
+fourBeamTKEStatyScaled = fourBeamTKEStaty./repmat(fourBeamTKE,[1 1 4]);
 
-beamVarStationarities.beamVarStatyStruc = beamVarStatyStruc;
-beamVarStationarities.burst4BeamTKEStruc = burst4BeamTKEStruc;
+statyOutputStruc.beamVar = beamVar;
+statyOutputStruc.beamVarStaty = beamVarStaty;
+statyOutputStruc.beamVarStatyScaled = beamVarStatyScaled;
+statyOutputStruc.fourBeamTKE = fourBeamTKE;
+statyOutputStruc.fourBeamTKEStaty = fourBeamTKEStaty;
+statyOutputStruc.fourBeamTKEStatyScaled = fourBeamTKEStatyScaled;
 
 end

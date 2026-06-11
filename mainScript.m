@@ -1,13 +1,14 @@
-clear all
+% clear all
 
 burstStartIndex = 5;
 burstEndIndex = 1470;
 
 dataPreprocessingWADZ;
 
-calcStatyFlag = 0;
+calcStatyFlag = 1;
+calcITSFlag = 1;
 makeITSContPlots = 0;
-makeVelMagContPlots = 1;
+makeVelMagContPlots = 0;
 makeITSVelWaveScatter = 1;
 
 %New analysis Mar 26
@@ -22,44 +23,71 @@ switch exist('burstMaxBins')
     case 0
         maxNumBins = floor(max((demozoneRawDepth(:,2) - paramStruc.blankDist)/paramStruc.binVertSize) + 1);
 end
-for beamCtr = 1:4
-    ITSStruc(beamCtr).beamITS = nan(burstEndIndex,maxNumBins);
-end
 
 %Inside a switch call to avoid repeating the most computationally-intensive
-%part of the code for a rerun if the variable already exists in the workspace.
-switch isfield(ITSStruc,'isStationary')
-    case 0
+%parts of the code for a rerun if some of the variables already exist in
+%the workspace.
+switch calcStatyFlag | calcITSFlag
+    case 1
+        switch calcStatyFlag
+            case 1
+
+                switch exist('statyDurations')
+                    case 1
+                        numDurns = length(statyDurations);
+                    otherwise
+                        numDurns = 4;
+                end
+                beamVar = nan(4,maxNumBins,burstEndIndex);
+                beamVarStaty = nan(4,maxNumBins,burstEndIndex,numDurns);
+                beamVarStatyScaled = nan(4,maxNumBins,burstEndIndex,numDurns);
+                fourBeamTKE = nan(maxNumBins,burstEndIndex);
+                fourBeamTKEStaty = nan(maxNumBins,burstEndIndex,numDurns);
+                fourBeamTKEStatyScaled = nan(maxNumBins,burstEndIndex,numDurns);
+        end
+
         for burstCtr = burstStartIndex:burstEndIndex;
             burstLoadingWADZ;
 
             switch calcStatyFlag
                 case 1
-                    beamVarStationarities(burstCtr) = checkVarTKEStationarity(burstBeamVelocities,paramStruc);
+                    statyStruc = checkVarTKEStationarity(burstBeamVelocities,paramStruc);
+                    beamVar(:,1:burstMaxBins(burstCtr),burstCtr) = statyStruc.beamVar;
+                    beamVarStaty(:,1:burstMaxBins(burstCtr),burstCtr,:) = statyStruc.beamVarStaty;
+                    beamVarStatyScaled(:,1:burstMaxBins(burstCtr),burstCtr,:) = statyStruc.beamVarStatyScaled;
+                    fourBeamTKE(1:burstMaxBins(burstCtr),burstCtr) = statyStruc.fourBeamTKE;
+                    fourBeamTKEStaty(1:burstMaxBins(burstCtr),burstCtr,:) = statyStruc.fourBeamTKEStaty;
+                    fourBeamTKEStatyScaled(1:burstMaxBins(burstCtr),burstCtr,:) = statyStruc.fourBeamTKEStatyScaled;
             end
 
-            %minNind is the minimum number of independent realisations across all
-            %four beams, used as a conservative estimate of the Nind for derived
-            %quantities (velocity magnitude, TKE etc).
-            minNind = nan(1,size(burstBeamVelocities(1).beamVel,2));
-            for zCtr = 1:size(burstBeamVelocities(1).beamVel,2)
-                for beamCtr = 1:4
-                    [~,ITSStruc(beamCtr).beamITS(burstCtr,zCtr)] = calcIntScales(burstBeamVelocities(beamCtr).beamVel(:,zCtr),paramStruc.sampFreq,0);
-                    ITSStruc(beamCtr).numIndRealisns(burstCtr,zCtr) = floor(paramStruc.burstDurn/ITSStruc(beamCtr).beamITS(burstCtr,zCtr));
-                    minNind(zCtr) = min(minNind(zCtr),ITSStruc(beamCtr).numIndRealisns(burstCtr,zCtr));
-                    %For some cases the number of independent realisations gets very high
-                    %because of low-correlation data (possibly erroneous) - this can lead
-                    %to calls to statySlopeTest with segments that are too short. We
-                    %therefore cap minNind so that each segment has at least ten data
-                    %points.
-                    minNind(zCtr) = min(minNind(zCtr),paramStruc.burstDurn*paramStruc.sampFreq/10);
-                end
-            end
+            switch calcITSFlag
+                case 1
+                    for beamCtr = 1:4
+                        ITSStruc(beamCtr).beamITS = nan(burstEndIndex,maxNumBins);
+                    end
+                    %minNind is the minimum number of independent realisations across all
+                    %four beams, used as a conservative estimate of the Nind for derived
+                    %quantities (velocity magnitude, TKE etc).
+                    minNind = nan(1,size(burstBeamVelocities(1).beamVel,2));
+                    for zCtr = 1:size(burstBeamVelocities(1).beamVel,2)
+                        for beamCtr = 1:4
+                            [~,ITSStruc(beamCtr).beamITS(burstCtr,zCtr)] = calcIntScales(burstBeamVelocities(beamCtr).beamVel(:,zCtr),paramStruc.sampFreq,0);
+                            ITSStruc(beamCtr).numIndRealisns(burstCtr,zCtr) = floor(paramStruc.burstDurn/ITSStruc(beamCtr).beamITS(burstCtr,zCtr));
+                            minNind(zCtr) = min(minNind(zCtr),ITSStruc(beamCtr).numIndRealisns(burstCtr,zCtr));
+                            %For some cases the number of independent realisations gets very high
+                            %because of low-correlation data (possibly erroneous) - this can lead
+                            %to calls to statySlopeTest with segments that are too short. We
+                            %therefore cap minNind so that each segment has at least ten data
+                            %points.
+                            minNind(zCtr) = min(minNind(zCtr),paramStruc.burstDurn*paramStruc.sampFreq/10);
+                        end
+                    end
 
-            %Note that burstMaxBins(burstCtr) is assigned a value in the call to
-            %burstLoadingWADZ above within this burst loop - if this is removed,
-            %the behaviour of this call will become unpredictable.
-            ITSStruc(1).isStationary(burstCtr,1:burstMaxBins(burstCtr)) = statySlopeTest(burstBeamVelocities,minNind,paramStruc);
+                    %Note that burstMaxBins(burstCtr) is assigned a value in the call to
+                    %burstLoadingWADZ above within this burst loop - if this is removed,
+                    %the behaviour of this call will become unpredictable.
+                    ITSStruc(1).isStationary(burstCtr,1:burstMaxBins(burstCtr)) = statySlopeTest(burstBeamVelocities,minNind,paramStruc);
+            end
 
             if rem(burstCtr,10) == 0,
                 fprintf("Burst # is %d \r",burstCtr)
@@ -117,6 +145,7 @@ cmnDepthProfLgth = length(beamVarStationarities(burstStartIndex).b1Var);
 for burstCtr = (burstStartIndex + 1):burstEndIndex
     cmnDepthProfLgth = min(cmnDepthProfLgth,length(beamVarStationarities(burstCtr).b1Var));
 end
+
 
 meanBeamVarStationarities.b1VarStatyScaled = zeros(4,cmnDepthProfLgth);
 meanBeamVarStationarities.b2VarStatyScaled = zeros(4,cmnDepthProfLgth);
