@@ -168,54 +168,30 @@ switch makeBeamVarStatyPlots
 end
 
 %%
-%Mean and conditioned mean profiles of TKE stationarity
-cmnDepthProfLgth = length(beamVarStationarities(burstStartIndex).b1Var);
-for burstCtr = (burstStartIndex + 1):burstEndIndex
-    cmnDepthProfLgth = min(cmnDepthProfLgth,length(beamVarStationarities(burstCtr).TKEStatyScaled));
+%Wave and non-wave bursts may already have been defined in the
+%visualisation of beam stationarity, so only needs to be done
+%conditionally.
+switch ~exist('waveBursts')
+    case 1
+        expanCoeffs = load('C:\Users\michael\Documents\WTIMTS\Results\WADZ\results-150Depth15Width0p02AmpCap\completeWorkspace.mat').TKEExpanCoeffs;
+        waveBursts = find(expanCoeffs(:,1) > 0); waveBursts = waveBursts + burstStartIndex - 1;
+        nonwaveBursts = find(expanCoeffs(:,1) <= 0); nonwaveBursts = nonwaveBursts + burstStartIndex - 1;
 end
 
-meanTKEStationarities = zeros(4,cmnDepthProfLgth);
-for burstCtr = burstStartIndex:burstEndIndex
-    profBins = length(beamVarStationarities(burstCtr).TKEStatyScaled);
-    meanTKEStationarities = meanTKEStationarities + beamVarStationarities(burstCtr).TKEStatyScaled(:,(profBins - cmnDepthProfLgth + 1):profBins);
-end
-meanTKEStationarities = meanTKEStationarities/(burstEndIndex - burstStartIndex + 1);
-surfRelDepthVecMean = -paramStruc.binVertSize*((size(meanTKEStationarities,2) - 1):-1:0);
-
-cmnDepthProfLgth = length(beamVarStationarities(waveBursts(1)).b1Var);
-for burstCtr = 2:length(waveBursts)
-    cmnDepthProfLgth = min(cmnDepthProfLgth,length(beamVarStationarities(waveBursts(burstCtr)).TKEStatyScaled));
-end
-meanTKEStationaritiesWave = zeros(4,cmnDepthProfLgth);
-for burstCtr = 1:length(waveBursts)
-    profBins = length(beamVarStationarities(waveBursts(burstCtr)).TKEStatyScaled);
-    meanTKEStationaritiesWave = meanTKEStationaritiesWave + beamVarStationarities(waveBursts(burstCtr)).TKEStatyScaled(:,(profBins - cmnDepthProfLgth + 1):profBins);
-end
-meanTKEStationaritiesWave = meanTKEStationaritiesWave/length(waveBursts);
-surfRelDepthVecWave = -paramStruc.binVertSize*((size(meanTKEStationaritiesWave,2) - 1):-1:0);
-
-cmnDepthProfLgth = length(beamVarStationarities(nonwaveBursts(1)).b1Var);
-for burstCtr = 2:length(nonwaveBursts)
-    cmnDepthProfLgth = min(cmnDepthProfLgth,length(beamVarStationarities(nonwaveBursts(burstCtr)).TKEStatyScaled));
-end
-meanTKEStationaritiesNonwave = zeros(4,cmnDepthProfLgth);
-for burstCtr = 1:length(nonwaveBursts)
-    profBins = length(beamVarStationarities(nonwaveBursts(burstCtr)).TKEStatyScaled);
-    meanTKEStationaritiesNonwave = meanTKEStationaritiesNonwave + beamVarStationarities(nonwaveBursts(burstCtr)).TKEStatyScaled(:,(profBins - cmnDepthProfLgth + 1):profBins);
-end
-meanTKEStationaritiesNonwave = meanTKEStationaritiesNonwave/length(nonwaveBursts);
-surfRelDepthVecNonwave = -paramStruc.binVertSize*((size(meanTKEStationaritiesNonwave,2) - 1):-1:0);
+meanTKEStatyScaled = squeeze(nanmean(fourBeamTKEStatyScaled,2));
+meanTKEStatyScaledWave = squeeze(nanmean(fourBeamTKEStatyScaled(:,waveBursts,:),2));
+meanTKEStatyScaledNonwave = squeeze(nanmean(fourBeamTKEStatyScaled(:,nonwaveBursts,:),2));
 
 %Visualise this as a figure with three panels: top panel is the overall
 %mean TKE dependence on averaging period, and the bottom two show
 %dependence on wave conditions (or not)
 TKEFigHand = figure;
 TKEAxHands(1) = subplot(2,2,1); hold on
-plot(meanTKEStationarities(1,:),surfRelDepthVecMean,'Color',[0.5 0.5 0.5],'LineWidth',2)
-plot(meanTKEStationarities(2,:),surfRelDepthVecMean,'Color',[0.5 0.5 0.8],'LineWidth',2)
-plot(meanTKEStationarities(3,:),surfRelDepthVecMean,'Color',[0.3 0.3 0.6],'LineWidth',2)
-plot(meanTKEStationarities(4,:),surfRelDepthVecMean,'Color',[0.7 0.4 0.1],'LineWidth',2)
-line([1 1],[surfRelDepthVecMean(1) surfRelDepthVecMean(end)],'Color','k','LineStyle','--')
+plot(meanTKEStatyScaled(:,1),plotParams.HASBVec,'Color',[0.5 0.5 0.5],'LineWidth',2)
+plot(meanTKEStatyScaled(:,2),plotParams.HASBVec,'Color',[0.5 0.5 0.8],'LineWidth',2)
+plot(meanTKEStatyScaled(:,3),plotParams.HASBVec,'Color',[0.3 0.3 0.6],'LineWidth',2)
+plot(meanTKEStatyScaled(:,4),plotParams.HASBVec,'Color',[0.7 0.4 0.1],'LineWidth',2)
+line([1 1],[plotParams.HASBVec(1) plotParams.HASBVec(end)],'Color','k','LineStyle','--')
 %TKEAxHands(1).Position(2) = 0.5 - 0.5*TKEAxHands(1).Position(4);
 title("Standardised mean TKE with different averaging times",'FontSize',16)
 set(gca,'FontSize',14)
@@ -223,11 +199,11 @@ legHand = legend('1 min','2 min','5 min','10 min');
 legHand.Location = 'eastoutside'; legHand.Box = 'off';
 
 TKEAxHands(2) = subplot(2,2,3); hold on
-plot(meanTKEStationaritiesWave(1,:),surfRelDepthVecWave,'Color',[0.5 0.5 0.5],'LineWidth',2)
-plot(meanTKEStationaritiesWave(2,:),surfRelDepthVecWave,'Color',[0.5 0.5 0.8],'LineWidth',2)
-plot(meanTKEStationaritiesWave(3,:),surfRelDepthVecWave,'Color',[0.3 0.3 0.6],'LineWidth',2)
-plot(meanTKEStationaritiesWave(4,:),surfRelDepthVecWave,'Color',[0.7 0.4 0.1],'LineWidth',2)
-line([1 1],[surfRelDepthVecWave(1) surfRelDepthVecWave(end)],'Color','k','LineStyle','--')
+plot(meanTKEStatyScaledWave(:,1),plotParams.HASBVec,'Color',[0.5 0.5 0.5],'LineWidth',2)
+plot(meanTKEStatyScaledWave(:,2),plotParams.HASBVec,'Color',[0.5 0.5 0.8],'LineWidth',2)
+plot(meanTKEStatyScaledWave(:,3),plotParams.HASBVec,'Color',[0.3 0.3 0.6],'LineWidth',2)
+plot(meanTKEStatyScaledWave(:,4),plotParams.HASBVec,'Color',[0.7 0.4 0.1],'LineWidth',2)
+line([1 1],[plotParams.HASBVec(1) plotParams.HASBVec(end)],'Color','k','LineStyle','--')
 title("In wave conditions only",'FontSize',16)
 set(gca,'FontSize',14)
 xLabHand = get(gca,'XLabel'); set(xLabHand,'String','Standardised mean TKE','FontSize',14)
@@ -237,11 +213,11 @@ xLabHand.Position(1) = 1.2; yLabHand.Position(2) = 1.2;
 xLabHand.FontSize = 16; yLabHand.FontSize = 16;
 
 TKEAxHands(3) = subplot(2,2,4); hold on
-plot(meanTKEStationaritiesNonwave(1,:),surfRelDepthVecNonwave,'Color',[0.5 0.5 0.5],'LineWidth',2)
-plot(meanTKEStationaritiesNonwave(2,:),surfRelDepthVecNonwave,'Color',[0.5 0.5 0.8],'LineWidth',2)
-plot(meanTKEStationaritiesNonwave(3,:),surfRelDepthVecNonwave,'Color',[0.3 0.3 0.6],'LineWidth',2)
-plot(meanTKEStationaritiesNonwave(4,:),surfRelDepthVecNonwave,'Color',[0.7 0.4 0.1],'LineWidth',2)
-line([1 1],[surfRelDepthVecNonwave(1) surfRelDepthVecNonwave(end)],'Color','k','LineStyle','--')
+plot(meanTKEStatyScaledNonwave(:,1),plotParams.HASBVec,'Color',[0.5 0.5 0.5],'LineWidth',2)
+plot(meanTKEStatyScaledNonwave(:,2),plotParams.HASBVec,'Color',[0.5 0.5 0.8],'LineWidth',2)
+plot(meanTKEStatyScaledNonwave(:,3),plotParams.HASBVec,'Color',[0.3 0.3 0.6],'LineWidth',2)
+plot(meanTKEStatyScaledNonwave(:,4),plotParams.HASBVec,'Color',[0.7 0.4 0.1],'LineWidth',2)
+line([1 1],[plotParams.HASBVec(1) plotParams.HASBVec(end)],'Color','k','LineStyle','--')
 title("In non-wave conditions only",'FontSize',16)
 set(gca,'FontSize',14)
 

@@ -10,7 +10,7 @@ calcITSFlag = 1;
 makeITSContPlots = 0;
 makeVelMagContPlots = 0;
 makeITSVelWaveScatter = 1;
-makeBeamVarStatyPlots = 0;
+makeBeamVarStatyPlots = 1;
 
 %New analysis Mar 26
 %Note that burstMaxBins will only exist in the workspace if you've already
@@ -147,7 +147,7 @@ switch makeITSVelWaveScatter
         [velITSScatterFigHand2,velITSScatterAxHand2,waveITSScatterFigHand2,waveITSScatterAxHand2,ITSStruc] = ...
             ITSVelWaveScatter(ITSStruc,velMag,burstWaveHeightsDespiked,burstMaxBins);
 end
-%%
+
 switch makeBeamVarStatyPlots
     case 1
 
@@ -160,39 +160,27 @@ switch makeBeamVarStatyPlots
         waveBursts = find(expanCoeffs(:,1) > 0); waveBursts = waveBursts + burstStartIndex - 1;
         nonwaveBursts = find(expanCoeffs(:,1) <= 0); nonwaveBursts = nonwaveBursts + burstStartIndex - 1;
     %First for waves:
-        timeMeanBeamVarStatysWave = squeeze(nanmean(beamVarStatyScaled(:,:,3,:),waveBursts));
-        [meanWaveStatyFig,meanWaveStatyAxes] = plotBurstVarStaty(paramStruc,timeMeanBeamVarStatysWave);
+        timeMeanBeamVarStatysWave = squeeze(nanmean(beamVarStatyScaled(:,:,waveBursts,:),3));
+        [meanWaveStatyFig,meanWaveStatyAxes] = plotBurstVarStaty(timeMeanBeamVarStatysWave,plotParams);
     %Then non-waves
-        timeMeanBeamVarStatysNonWave = squeeze(nanmean(beamVarStatyScaled(:,:,3,:),nonwaveBursts));
-        [meanNonWaveStatyFig,meanNonWaveStatyAxes] = plotBurstVarStaty(paramStruc,timeMeanBeamVarStatysNonWave);
+        timeMeanBeamVarStatysNonWave = squeeze(nanmean(beamVarStatyScaled(:,:,nonwaveBursts,:),3));
+        [meanNonWaveStatyFig,meanNonWaveStatyAxes] = plotBurstVarStaty(timeMeanBeamVarStatysNonWave,plotParams);
 end
 
 %%
-%Mean and conditioned mean profiles of TKE stationarity
-cmnDepthProfLgth = length(beamVarStationarities(burstStartIndex).b1Var);
-for burstCtr = (burstStartIndex + 1):burstEndIndex
-    cmnDepthProfLgth = min(cmnDepthProfLgth,length(beamVarStationarities(burstCtr).TKEStatyScaled));
+%Wave and non-wave bursts may already have been defined in the
+%visualisation of beam stationarity, so only needs to be done
+%conditionally.
+switch ~exist('waveBursts')
+    case 1
+        expanCoeffs = load('C:\Users\michael\Documents\WTIMTS\Results\WADZ\results-150Depth15Width0p02AmpCap\completeWorkspace.mat').TKEExpanCoeffs;
+        waveBursts = find(expanCoeffs(:,1) > 0); waveBursts = waveBursts + burstStartIndex - 1;
+        nonwaveBursts = find(expanCoeffs(:,1) <= 0); nonwaveBursts = nonwaveBursts + burstStartIndex - 1;
 end
 
-meanTKEStationarities = zeros(4,cmnDepthProfLgth);
-for burstCtr = burstStartIndex:burstEndIndex
-    profBins = length(beamVarStationarities(burstCtr).TKEStatyScaled);
-    meanTKEStationarities = meanTKEStationarities + beamVarStationarities(burstCtr).TKEStatyScaled(:,(profBins - cmnDepthProfLgth + 1):profBins);
-end
-meanTKEStationarities = meanTKEStationarities/(burstEndIndex - burstStartIndex + 1);
-surfRelDepthVecMean = -paramStruc.binVertSize*((size(meanTKEStationarities,2) - 1):-1:0);
-
-cmnDepthProfLgth = length(beamVarStationarities(waveBursts(1)).b1Var);
-for burstCtr = 2:length(waveBursts)
-    cmnDepthProfLgth = min(cmnDepthProfLgth,length(beamVarStationarities(waveBursts(burstCtr)).TKEStatyScaled));
-end
-meanTKEStationaritiesWave = zeros(4,cmnDepthProfLgth);
-for burstCtr = 1:length(waveBursts)
-    profBins = length(beamVarStationarities(waveBursts(burstCtr)).TKEStatyScaled);
-    meanTKEStationaritiesWave = meanTKEStationaritiesWave + beamVarStationarities(waveBursts(burstCtr)).TKEStatyScaled(:,(profBins - cmnDepthProfLgth + 1):profBins);
-end
-meanTKEStationaritiesWave = meanTKEStationaritiesWave/length(waveBursts);
-surfRelDepthVecWave = -paramStruc.binVertSize*((size(meanTKEStationaritiesWave,2) - 1):-1:0);
+meanTKEStatyScaled = squeeze(nanmean(fourBeamTKEStatyScaled,2));
+meanTKEStatyScaledWave = squeeze(nanmean(fourBeamTKEStatyScaled(:,waveBursts,:),2));
+meanTKEStatyScaledNonwave = squeeze(nanmean(fourBeamTKEStatyScaled(:,nonwaveBursts,:),2));
 
 cmnDepthProfLgth = length(beamVarStationarities(nonwaveBursts(1)).b1Var);
 for burstCtr = 2:length(nonwaveBursts)
