@@ -10,6 +10,7 @@ calcITSFlag = 1;
 makeITSContPlots = 0;
 makeVelMagContPlots = 0;
 makeITSVelWaveScatter = 1;
+makeBeamVarStatyPlots = 0;
 
 %New analysis Mar 26
 %Note that burstMaxBins will only exist in the workspace if you've already
@@ -107,7 +108,7 @@ end
 
 %Optionally make contour plots of the integral time scales, controlled by
 %the flag makeITSContPlots
-plotParams.HASBVec = paramStruc.blankDist + paramStruc.binVertSize*(0:size(burstBeamVelocities(1).beamVel,2));
+plotParams.HASBVec = paramStruc.blankDist + paramStruc.binVertSize*(0:(maxNumBins - 1));
 plotParams.timeVec = wholeRecordDatenums(1,burstStartIndex:burstEndIndex);
 
 switch makeITSContPlots
@@ -147,31 +148,11 @@ switch makeITSVelWaveScatter
             ITSVelWaveScatter(ITSStruc,velMag,burstWaveHeightsDespiked,burstMaxBins);
 end
 
-%%
-%Overall mean profiles of scaled variance and TKE to visualise stationarity
-cmnDepthProfLgth = length(beamVarStationarities(burstStartIndex).b1Var);
-for burstCtr = (burstStartIndex + 1):burstEndIndex
-    cmnDepthProfLgth = min(cmnDepthProfLgth,length(beamVarStationarities(burstCtr).b1Var));
+switch makeBeamVarStatyPlots
+    case 1
+        timeMeanBeamVarStatyScaled = squeeze(nanmean(beamVarStatyScaled,3));
+        [meanStatyFig,meanStatyAxes] = plotBurstVarStaty(timeMeanBeamVarStatyScaled,plotParams);
 end
-
-
-meanBeamVarStationarities.b1VarStatyScaled = zeros(4,cmnDepthProfLgth);
-meanBeamVarStationarities.b2VarStatyScaled = zeros(4,cmnDepthProfLgth);
-meanBeamVarStationarities.b3VarStatyScaled = zeros(4,cmnDepthProfLgth);
-meanBeamVarStationarities.b4VarStatyScaled = zeros(4,cmnDepthProfLgth);
-for burstCtr = burstStartIndex:burstEndIndex
-    profBins = length(beamVarStationarities(burstCtr).b1VarStatyScaled);
-    meanBeamVarStationarities.b1VarStatyScaled = meanBeamVarStationarities.b1VarStatyScaled + beamVarStationarities(burstCtr).b1VarStatyScaled(:,(profBins - cmnDepthProfLgth + 1):profBins);
-    meanBeamVarStationarities.b2VarStatyScaled = meanBeamVarStationarities.b2VarStatyScaled + beamVarStationarities(burstCtr).b2VarStatyScaled(:,(profBins - cmnDepthProfLgth + 1):profBins);
-    meanBeamVarStationarities.b3VarStatyScaled = meanBeamVarStationarities.b3VarStatyScaled + beamVarStationarities(burstCtr).b3VarStatyScaled(:,(profBins - cmnDepthProfLgth + 1):profBins);
-    meanBeamVarStationarities.b4VarStatyScaled = meanBeamVarStationarities.b4VarStatyScaled + beamVarStationarities(burstCtr).b4VarStatyScaled(:,(profBins - cmnDepthProfLgth + 1):profBins);
-end
-meanBeamVarStationarities.b1VarStatyScaled = meanBeamVarStationarities.b1VarStatyScaled/(burstEndIndex - burstStartIndex + 1);
-meanBeamVarStationarities.b2VarStatyScaled = meanBeamVarStationarities.b2VarStatyScaled/(burstEndIndex - burstStartIndex + 1);
-meanBeamVarStationarities.b3VarStatyScaled = meanBeamVarStationarities.b3VarStatyScaled/(burstEndIndex - burstStartIndex + 1);
-meanBeamVarStationarities.b4VarStatyScaled = meanBeamVarStationarities.b4VarStatyScaled/(burstEndIndex - burstStartIndex + 1);
-
-[meanStatyFig,meanStatyAxes] = plotBurstVarStaty(paramStruc,meanBeamVarStationarities);
 %%
 %Conditional mean profiles of scaled variance to visualise stationarity's
 %dependence on wave conditions
