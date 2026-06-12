@@ -10,7 +10,7 @@ calcITSFlag = 1;
 makeITSContPlots = 0;
 makeVelMagContPlots = 0;
 makeITSVelWaveScatter = 1;
-makeBeamVarStatyPlots = 0;
+makeBeamVarStatyPlots = 1;
 
 %New analysis Mar 26
 %Note that burstMaxBins will only exist in the workspace if you've already
@@ -150,24 +150,22 @@ end
 
 switch makeBeamVarStatyPlots
     case 1
+
+    %Start with mean beam variance stationarity over the whole record
         timeMeanBeamVarStatyScaled = squeeze(nanmean(beamVarStatyScaled,3));
         [meanStatyFig,meanStatyAxes] = plotBurstVarStaty(timeMeanBeamVarStatyScaled,plotParams);
+
+    %Then repeat for subsets that are selected based on wave conditions
+        expanCoeffs = load('C:\Users\michael\Documents\WTIMTS\Results\WADZ\results-150Depth15Width0p02AmpCap\completeWorkspace.mat').TKEExpanCoeffs;
+        waveBursts = find(expanCoeffs(:,1) > 0); waveBursts = waveBursts + burstStartIndex - 1;
+        nonwaveBursts = find(expanCoeffs(:,1) <= 0); nonwaveBursts = nonwaveBursts + burstStartIndex - 1;
+    %First for waves:
+        timeMeanBeamVarStatysWave = squeeze(nanmean(beamVarStatyScaled(:,:,waveBursts,:),3));
+        [meanWaveStatyFig,meanWaveStatyAxes] = plotBurstVarStaty(timeMeanBeamVarStatysWave,plotParams);
+    %Then non-waves
+        timeMeanBeamVarStatysNonWave = squeeze(nanmean(beamVarStatyScaled(:,:,nonwaveBursts,:),3));
+        [meanNonWaveStatyFig,meanNonWaveStatyAxes] = plotBurstVarStaty(timeMeanBeamVarStatysNonWave,plotParams);
 end
-%%
-%Conditional mean profiles of scaled variance to visualise stationarity's
-%dependence on wave conditions
-
-expanCoeffs = load('C:\Users\M.Togneri\Documents\WTIMTS\Results\WADZ\results-150Depth15Width0p02AmpCap\completeWorkspace.mat').TKEExpanCoeffs;
-waveBursts = find(expanCoeffs(:,1) > 0); waveBursts = waveBursts + burstStartIndex - 1;
-nonwaveBursts = find(expanCoeffs(:,1) <= 0); nonwaveBursts = nonwaveBursts + burstStartIndex - 1;
-
-%First for waves:
-meanBeamVarStatysWave = calcMeanBeamVars(beamVarStationarities,waveBursts);
-[meanWaveStatyFig,meanQVWStatyAxes] = plotBurstVarStaty(paramStruc,meanBeamVarStatysWave);
-
-%Then non-waves
-meanBeamVarStatysNonwave = calcMeanBeamVars(beamVarStationarities,nonwaveBursts);
-[meanNonwaveStatyFig,meanNonwaveStatyAxes] = plotBurstVarStaty(paramStruc,meanBeamVarStatysNonwave);
 
 %%
 %Mean and conditioned mean profiles of TKE stationarity

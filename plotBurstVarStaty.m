@@ -9,16 +9,18 @@ arguments
     legLabels = {'1 min', '2 min', '5 min', '10 min'}
 end
 
-figHand = figure;
+figHand = figure; tileHand = tiledlayout;
 for beamCtr = 1:4
-    axHand(beamCtr) = subplot(2,2,beamCtr); hold on
+    axHand(beamCtr) = nexttile; hold on
     for durCtr = 1:size(beamVarStationarities,3)
         plot(beamVarStationarities(beamCtr,:,durCtr),plotParams.HASBVec)
     end
     line([1 1],[plotParams.HASBVec(1) plotParams.HASBVec(end)],'Color','k','LineStyle','--')
-    title(["Beam " int2str(beamCtr)],'FontSize',16)
+    title("Beam " + int2str(beamCtr),'FontSize',12)
     set(gca,'FontSize',14)
 end
+xlabel(tileHand,'Scaled beam stationarity','FontSize',18)
+ylabel(tileHand,'Height above seabed','FontSize',18)
 
 legHand = legend(legLabels);
 legHand.Location = 'southeast'; legHand.Box = 'off';
