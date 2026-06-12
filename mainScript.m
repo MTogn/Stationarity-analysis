@@ -29,6 +29,9 @@ end
 %the workspace.
 switch calcStatyFlag | calcITSFlag
     case 1
+
+        %Preallocations for the stationarity and ITS calculations before
+        %the main loop over bursts
         switch calcStatyFlag
             case 1
 
@@ -46,6 +49,14 @@ switch calcStatyFlag | calcITSFlag
                 fourBeamTKEStatyScaled = nan(maxNumBins,burstEndIndex,numDurns);
         end
 
+        switch calcITSFlag
+            case 1
+                for beamCtr = 1:4
+                    ITSStruc(beamCtr).beamITS = nan(burstEndIndex,maxNumBins);
+                end
+        end
+
+        %Start the main loop over bursts
         for burstCtr = burstStartIndex:burstEndIndex;
             burstLoadingWADZ;
 
@@ -62,9 +73,6 @@ switch calcStatyFlag | calcITSFlag
 
             switch calcITSFlag
                 case 1
-                    for beamCtr = 1:4
-                        ITSStruc(beamCtr).beamITS = nan(burstEndIndex,maxNumBins);
-                    end
                     %minNind is the minimum number of independent realisations across all
                     %four beams, used as a conservative estimate of the Nind for derived
                     %quantities (velocity magnitude, TKE etc).
