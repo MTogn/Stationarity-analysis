@@ -207,7 +207,7 @@ line([1 1],[plotParams.HASBVec(1) plotParams.HASBVec(end)],'Color','k','LineStyl
 title("In wave conditions only",'FontSize',16)
 set(gca,'FontSize',14)
 xLabHand = get(gca,'XLabel'); set(xLabHand,'String','Standardised mean TKE','FontSize',14)
-yLabHand = get(gca,'YLabel'); set(yLabHand,'String','Depth below surface (m)','FontSize',14)
+yLabHand = get(gca,'YLabel'); set(yLabHand,'String','Height above seabed (m)','FontSize',14)
 xLabHand.Units = 'normalized'; yLabHand.Units = 'normalized';
 xLabHand.Position(1) = 1.2; yLabHand.Position(2) = 1.2;
 xLabHand.FontSize = 16; yLabHand.FontSize = 16;
@@ -224,3 +224,44 @@ set(gca,'FontSize',14)
 TKEAxHands(1).Position(3) = TKEAxHands(2).Position(3);
 TKEAxHands(1).Position(1) = 0.5 - 0.5*TKEAxHands(1).Position(3);
 TKEAxHands(1).XLim = [0.8 1.2]; TKEAxHands(2).XLim = [0.8 1.2]; TKEAxHands(3).XLim = [0.8 1.2];
+
+%%
+%Analysis of how many records pass the stationarity tests
+numRecords = 0;
+velPassP95Test = 0; velPassSlopeTest = 0;
+TKEPassP95Test = 0; TKEPassSlopeTest = 0;
+for burstCtr = burstStartIndex:burstEndIndex
+    for zCtr = 1:burstMaxBins(burstCtr)
+        velPassP95Test = velPassP95Test + ~ITSStruc(1).isStationary(burstCtr,zCtr).isNonZeroSlopeP95Vel;
+        velPassSlopeTest = velPassSlopeTest + ~ITSStruc(1).isStationary(burstCtr,zCtr).exceedsMaxSlopeVel;
+        TKEPassP95Test = TKEPassP95Test + ~ITSStruc(1).isStationary(burstCtr,zCtr).isNonZeroSlopeP95TKE;
+        TKEPassSlopeTest = TKEPassSlopeTest + ~ITSStruc(1).isStationary(burstCtr,zCtr).exceedsMaxSlopeTKE;
+        numRecords = numRecords + 1;
+    end
+end
+
+fprintf("Proportion of bursts passing velocity stationarity test A is %3.3f \r", velPassP95Test/numRecords)
+fprintf("Proportion of bursts passing velocity stationarity test B is %3.3f \r", velPassSlopeTest/numRecords)
+fprintf("Proportion of bursts passing TKE stationarity test A is %3.3f \r", TKEPassP95Test/numRecords)
+fprintf("Proportion of bursts passing TKE stationarity test B is %3.3f \r", TKEPassSlopeTest/numRecords)
+
+passNums = passStatyTestCheck(ITSStruc(1).isStationary,burstMaxBins,burstStartIndex,burstEndIndex);
+fprintf("Proportion of bursts passing velocity stationarity test A is %3.3f \r", passNums.velPassP95Test/passNums.numRecords)
+fprintf("Proportion of bursts passing velocity stationarity test B is %3.3f \r", passNums.velPassSlopeTest/passNums.numRecords)
+fprintf("Proportion of bursts passing TKE stationarity test A is %3.3f \r", passNums.TKEPassP95Test/passNums.numRecords)
+fprintf("Proportion of bursts passing TKE stationarity test B is %3.3f \r", passNums.TKEPassSlopeTest/passNums.numRecords)
+
+% velMagVec = velMag(:); velMagVec(velMagVec == 0) = NaN; figure, hist(velMagVec)
+
+%%
+velBinMax = 2; velBinStep = 0.25;
+velBinLo = 0; velBinHi = velBinStep;
+velBinVec = velBinLo:velBinStep:velBinMax;
+velMaskCtr = 1;
+while velBinHi <= velBinMax
+    velMagMask(:,:,velMaskCtr) = (velMag > velBinLo) & (velMag <= velBinHi);
+    velBinLo = velBinLo + velBinStep;
+    velBinHi = velBinHi + velBinStep;
+    velMaskCtr = velMaskCtr + 1;
+end
+velMagMask(:,:,velMaskCtr) = velMag > velBinMax;
