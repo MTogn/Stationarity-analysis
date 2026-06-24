@@ -227,33 +227,91 @@ TKEAxHands(1).XLim = [0.8 1.2]; TKEAxHands(2).XLim = [0.8 1.2]; TKEAxHands(3).XL
 
 %%
 %Analysis of how many records pass the stationarity tests
-numRecords = 0;
-velPassP95Test = 0; velPassSlopeTest = 0;
-TKEPassP95Test = 0; TKEPassSlopeTest = 0;
-for burstCtr = burstStartIndex:burstEndIndex
-    for zCtr = 1:burstMaxBins(burstCtr)
-        velPassP95Test = velPassP95Test + ~ITSStruc(1).isStationary(burstCtr,zCtr).isNonZeroSlopeP95Vel;
-        velPassSlopeTest = velPassSlopeTest + ~ITSStruc(1).isStationary(burstCtr,zCtr).exceedsMaxSlopeVel;
-        TKEPassP95Test = TKEPassP95Test + ~ITSStruc(1).isStationary(burstCtr,zCtr).isNonZeroSlopeP95TKE;
-        TKEPassSlopeTest = TKEPassSlopeTest + ~ITSStruc(1).isStationary(burstCtr,zCtr).exceedsMaxSlopeTKE;
-        numRecords = numRecords + 1;
-    end
-end
+passNumsAll = passStatyTestCheck(ITSStruc(1).isStationary,burstMaxBins,burstStartIndex,burstEndIndex);
+fprintf("Proportion of bursts passing velocity stationarity test A is %3.3f \r", passNumsAll.velPassP95Test/passNumsAll.numRecords)
+fprintf("Proportion of bursts passing velocity stationarity test B is %3.3f \r", passNumsAll.velPassSlopeTest/passNumsAll.numRecords)
+fprintf("Proportion of bursts passing TKE stationarity test A is %3.3f \r", passNumsAll.TKEPassP95Test/passNumsAll.numRecords)
+fprintf("Proportion of bursts passing TKE stationarity test B is %3.3f \r", passNumsAll.TKEPassSlopeTest/passNumsAll.numRecords)
 
-fprintf("Proportion of bursts passing velocity stationarity test A is %3.3f \r", velPassP95Test/numRecords)
-fprintf("Proportion of bursts passing velocity stationarity test B is %3.3f \r", velPassSlopeTest/numRecords)
-fprintf("Proportion of bursts passing TKE stationarity test A is %3.3f \r", TKEPassP95Test/numRecords)
-fprintf("Proportion of bursts passing TKE stationarity test B is %3.3f \r", TKEPassSlopeTest/numRecords)
-
-velMagVec = velMag(:); velMagVec(velMagVec == 0) = NaN; figure, hist(velMagVec)
-
+%Analyse how mean velocity magnitude affects stationarity test pass rates
 velBinMax = 2; velBinStep = 0.25;
 velBinLo = 0; velBinHi = velBinStep;
 velBinVec = velBinLo:velBinStep:velBinMax;
 velMaskCtr = 1;
+clear velMagMask passNums
 while velBinHi <= velBinMax
     velMagMask(:,:) = (velMag > velBinLo) & (velMag <= velBinHi);
+    % passNums(velMaskCtr).velBinLo = velBinLo; passNums(velMaskCtr).velBinHi = velBinHi;
     velBinLo = velBinLo + velBinStep;
     velBinHi = velBinHi + velBinStep;
+    passNums(velMaskCtr) = passStatyTestCheck(ITSStruc(1).isStationary,burstMaxBins,burstStartIndex,burstEndIndex,velMagMask);
     velMaskCtr = velMaskCtr + 1;
 end
+velMagMask(:,:) = velMag > velBinMax;
+passNums(velMaskCtr) = passStatyTestCheck(ITSStruc(1).isStationary,burstMaxBins,burstStartIndex,burstEndIndex,velMagMask);
+
+velBins = 0:0.25:2;
+for binCtr = 1:length(velBins)
+    velTestAPassFrac(binCtr) = passNums(binCtr).velPassP95Test/passNums(binCtr).numRecords;
+    velTestBPassFrac(binCtr) = passNums(binCtr).velPassSlopeTest/passNums(binCtr).numRecords;
+    TKETestAPassFrac(binCtr) = passNums(binCtr).TKEPassP95Test/passNums(binCtr).numRecords;
+    TKETestBPassFrac(binCtr) = passNums(binCtr).TKEPassSlopeTest/passNums(binCtr).numRecords;
+end
+
+statyVelDependenceFigHand = figure, hold on
+velTestAPlotHand = plot(velBins,velTestAPassFrac,'LineWidth',2)
+velTestBPlotHand = plot(velBins,velTestBPassFrac,'LineWidth',2)
+TKETestAPlotHand = plot(velBins,TKETestAPassFrac,'LineWidth',2)
+TKETestBPlotHand = plot(velBins,TKETestBPassFrac,'LineWidth',2)
+statyVelDependenceLegHand = legend('Velocity - P95 test', 'Velocity - max slope test','TKE - P95 test','TKE - max slope test');
+statyVelDependenceLegHand.Location = 'northwest';
+statyVelDependenceLegHand.AutoUpdate = 'off';
+
+line([velBins(1) velBins(end)],[passNumsAll.velPassP95Test/passNumsAll.numRecords passNumsAll.velPassP95Test/passNumsAll.numRecords],...
+    'Color',get(velTestAPlotHand,'Color'),'LineStyle','--')
+line([velBins(1) velBins(end)],[passNumsAll.velPassSlopeTest/passNumsAll.numRecords passNumsAll.velPassSlopeTest/passNumsAll.numRecords],...
+    'Color',get(velTestBPlotHand,'Color'),'LineStyle','--')
+line([velBins(1) velBins(end)],[passNumsAll.TKEPassP95Test/passNumsAll.numRecords passNumsAll.TKEPassP95Test/passNumsAll.numRecords],...
+    'Color',get(TKETestAPlotHand,'Color'),'LineStyle','--')
+line([velBins(1) velBins(end)],[passNumsAll.TKEPassSlopeTest/passNumsAll.numRecords passNumsAll.TKEPassSlopeTest/passNumsAll.numRecords],...
+    'Color',get(TKETestBPlotHand,'Color'),'LineStyle','--')
+
+set(gca,'FontSize',14)
+set(get(gca,'XLabel'),'String','Velocity bin (m \cdot s ^{-1})','FontSize',16)
+set(get(gca,'YLabel'),'String','Proportion passing test','FontSize',16)
+
+for zCtr = 1:max(burstMaxBins)
+    velMagMask = zeros(size(velMag));
+    if size(velMagMask,1) == max(burstMaxBins)
+        velMagMask(zCtr,:) = 1;
+    else
+        velMagMask(:,zCtr) = 1;
+    end
+    passNumsDepth(velMaskCtr) = passStatyTestCheck(ITSStruc(1).isStationary,burstMaxBins,burstStartIndex,burstEndIndex,velMagMask);
+    velTestAPassFrac(zCtr) = passNumsDepth(zCtr).velPassP95Test/passNumsDepth(zCtr).numRecords;
+    velTestBPassFrac(zCtr) = passNumsDepth(zCtr).velPassSlopeTest/passNumsDepth(zCtr).numRecords;
+    TKETestAPassFrac(zCtr) = passNumsDepth(zCtr).TKEPassP95Test/passNumsDepth(zCtr).numRecords;
+    TKETestBPassFrac(zCtr) = passNumsDepth(zCtr).TKEPassSlopeTest/passNumsDepth(zCtr).numRecords;
+end
+
+statyDepthDependenceFigHand = figure, hold on
+velTestAPlotHand = plot(velTestAPassFrac,plotParams.HASBVec,'LineWidth',2)
+velTestBPlotHand = plot(velTestBPassFrac,plotParams.HASBVec,'LineWidth',2)
+TKETestAPlotHand = plot(TKETestAPassFrac,'LineWidth',2)
+TKETestBPlotHand = plot(TKETestBPassFrac,'LineWidth',2)
+statyVelDependenceLegHand = legend('Velocity - P95 test', 'Velocity - max slope test','TKE - P95 test','TKE - max slope test');
+statyVelDependenceLegHand.Location = 'northwest';
+statyVelDependenceLegHand.AutoUpdate = 'off';
+
+line([velBins(1) velBins(end)],[passNumsAll.velPassP95Test/passNumsAll.numRecords passNumsAll.velPassP95Test/passNumsAll.numRecords],...
+    'Color',get(velTestAPlotHand,'Color'),'LineStyle','--')
+line([velBins(1) velBins(end)],[passNumsAll.velPassSlopeTest/passNumsAll.numRecords passNumsAll.velPassSlopeTest/passNumsAll.numRecords],...
+    'Color',get(velTestBPlotHand,'Color'),'LineStyle','--')
+line([velBins(1) velBins(end)],[passNumsAll.TKEPassP95Test/passNumsAll.numRecords passNumsAll.TKEPassP95Test/passNumsAll.numRecords],...
+    'Color',get(TKETestAPlotHand,'Color'),'LineStyle','--')
+line([velBins(1) velBins(end)],[passNumsAll.TKEPassSlopeTest/passNumsAll.numRecords passNumsAll.TKEPassSlopeTest/passNumsAll.numRecords],...
+    'Color',get(TKETestBPlotHand,'Color'),'LineStyle','--')
+
+set(gca,'FontSize',14)
+set(get(gca,'XLabel'),'String','Velocity bin (m \cdot s ^{-1})','FontSize',16)
+set(get(gca,'YLabel'),'String','Proportion passing test','FontSize',16)
