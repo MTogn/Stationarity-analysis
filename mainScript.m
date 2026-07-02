@@ -11,6 +11,10 @@ makeITSContPlots = 0;
 makeVelMagContPlots = 0;
 makeITSVelWaveScatter = 1;
 makeBeamVarStatyPlots = 1;
+analyseStatyFlag.main = 1;
+analyseStatyFlag.velDependence = 1;
+analyseStatyFlag.depthDependence = 1;
+analyseStatyFlag.phaseDependence = 1;
 
 %New analysis Mar 26
 %Note that burstMaxBins will only exist in the workspace if you've already
@@ -226,59 +230,26 @@ TKEAxHands(1).Position(1) = 0.5 - 0.5*TKEAxHands(1).Position(3);
 TKEAxHands(1).XLim = [0.8 1.2]; TKEAxHands(2).XLim = [0.8 1.2]; TKEAxHands(3).XLim = [0.8 1.2];
 
 %%
-%Analysis of how many records pass the stationarity tests
-passNumsAll = passStatyTestCheck(ITSStruc(1).isStationary,burstMaxBins,burstStartIndex,burstEndIndex);
-fprintf("Proportion of bursts passing velocity stationarity test A is %3.3f \r", passNumsAll.velPassP95Test/passNumsAll.numRecords)
-fprintf("Proportion of bursts passing velocity stationarity test B is %3.3f \r", passNumsAll.velPassSlopeTest/passNumsAll.numRecords)
-fprintf("Proportion of bursts passing TKE stationarity test A is %3.3f \r", passNumsAll.TKEPassP95Test/passNumsAll.numRecords)
-fprintf("Proportion of bursts passing TKE stationarity test B is %3.3f \r", passNumsAll.TKEPassSlopeTest/passNumsAll.numRecords)
+switch analyseStatyFlag.main
+    case 1
 
-%Analyse how mean velocity magnitude affects stationarity test pass rates
-velBinMax = 2; velBinStep = 0.25;
-velBinLo = 0; velBinHi = velBinStep;
-velBinVec = velBinLo:velBinStep:velBinMax;
-velMaskCtr = 1;
-clear velMagMask passNums
-while velBinHi <= velBinMax
-    velMagMask(:,:) = (velMag > velBinLo) & (velMag <= velBinHi);
-    % passNums(velMaskCtr).velBinLo = velBinLo; passNums(velMaskCtr).velBinHi = velBinHi;
-    velBinLo = velBinLo + velBinStep;
-    velBinHi = velBinHi + velBinStep;
-    passNums(velMaskCtr) = passStatyTestCheck(ITSStruc(1).isStationary,burstMaxBins,burstStartIndex,burstEndIndex,velMagMask);
-    velMaskCtr = velMaskCtr + 1;
+        %Analysis of how many records pass the stationarity tests
+        passNumsAll = passStatyTestCheck(ITSStruc(1).isStationary,burstMaxBins,burstStartIndex,burstEndIndex);
+        fprintf("Proportion of bursts passing velocity stationarity test A is %3.3f \r", passNumsAll.velPassP95Test/passNumsAll.numRecords)
+        fprintf("Proportion of bursts passing velocity stationarity test B is %3.3f \r", passNumsAll.velPassSlopeTest/passNumsAll.numRecords)
+        fprintf("Proportion of bursts passing TKE stationarity test A is %3.3f \r", passNumsAll.TKEPassP95Test/passNumsAll.numRecords)
+        fprintf("Proportion of bursts passing TKE stationarity test B is %3.3f \r", passNumsAll.TKEPassSlopeTest/passNumsAll.numRecords)
+
+        %Analyse how mean velocity magnitude affects stationarity test pass rates
+        switch analyseStatyFlag.velDependence
+            case 1
+
+                velBinMin = 0; velBinMax = 2; velBinStep = 0.25;
+                velBinVec = velBinMin:velBinStep:velBinMax;
+                [passNumsVelMag,statyVelMagFigHand,statyVelMagPlotHands,statyVelMagLegHand] = statyVelMagAnys(ITSStruc(1).isStationary,velMag,burstMaxBins,burstStartIndex,burstEndIndex,velBinVec,1)
+
+        end
 end
-velMagMask(:,:) = velMag > velBinMax;
-passNums(velMaskCtr) = passStatyTestCheck(ITSStruc(1).isStationary,burstMaxBins,burstStartIndex,burstEndIndex,velMagMask);
-
-velBins = 0:0.25:2;
-for binCtr = 1:length(velBins)
-    velTestAPassFrac(binCtr) = passNums(binCtr).velPassP95Test/passNums(binCtr).numRecords;
-    velTestBPassFrac(binCtr) = passNums(binCtr).velPassSlopeTest/passNums(binCtr).numRecords;
-    TKETestAPassFrac(binCtr) = passNums(binCtr).TKEPassP95Test/passNums(binCtr).numRecords;
-    TKETestBPassFrac(binCtr) = passNums(binCtr).TKEPassSlopeTest/passNums(binCtr).numRecords;
-end
-
-statyVelDependenceFigHand = figure, hold on
-velTestAPlotHand = plot(velBins,velTestAPassFrac,'LineWidth',2)
-velTestBPlotHand = plot(velBins,velTestBPassFrac,'LineWidth',2)
-TKETestAPlotHand = plot(velBins,TKETestAPassFrac,'LineWidth',2)
-TKETestBPlotHand = plot(velBins,TKETestBPassFrac,'LineWidth',2)
-statyVelDependenceLegHand = legend('Velocity - P95 test', 'Velocity - max slope test','TKE - P95 test','TKE - max slope test');
-statyVelDependenceLegHand.Location = 'northwest';
-statyVelDependenceLegHand.AutoUpdate = 'off';
-
-line([velBins(1) velBins(end)],[passNumsAll.velPassP95Test/passNumsAll.numRecords passNumsAll.velPassP95Test/passNumsAll.numRecords],...
-    'Color',get(velTestAPlotHand,'Color'),'LineStyle','--')
-line([velBins(1) velBins(end)],[passNumsAll.velPassSlopeTest/passNumsAll.numRecords passNumsAll.velPassSlopeTest/passNumsAll.numRecords],...
-    'Color',get(velTestBPlotHand,'Color'),'LineStyle','--')
-line([velBins(1) velBins(end)],[passNumsAll.TKEPassP95Test/passNumsAll.numRecords passNumsAll.TKEPassP95Test/passNumsAll.numRecords],...
-    'Color',get(TKETestAPlotHand,'Color'),'LineStyle','--')
-line([velBins(1) velBins(end)],[passNumsAll.TKEPassSlopeTest/passNumsAll.numRecords passNumsAll.TKEPassSlopeTest/passNumsAll.numRecords],...
-    'Color',get(TKETestBPlotHand,'Color'),'LineStyle','--')
-
-set(gca,'FontSize',14)
-set(get(gca,'XLabel'),'String','Velocity bin (m \cdot s ^{-1})','FontSize',16)
-set(get(gca,'YLabel'),'String','Proportion passing test','FontSize',16)
 
 %%
 %Analyse how height above seabed affects stationarity test pass rates
@@ -317,3 +288,33 @@ line([passNumsAll.TKEPassSlopeTest/passNumsAll.numRecords passNumsAll.TKEPassSlo
 set(gca,'FontSize',14)
 set(get(gca,'XLabel'),'String','Proportion passing test','FontSize',16)
 set(get(gca,'YLabel'),'String','Height above seabed (m)','FontSize',16)
+
+%%
+%Analyse how flood/ebb affects the stationarity test results
+if ~exist("velNorth")
+    load('C:\Users\michael\Documents\ADCP\DEMOZONE\burstMeanVelsDirs.mat','velNorth')
+end
+if size(velNorth,2) == burstEndIndex,
+    velNorth = velNorth';
+end
+isFlood = zeros(burstEndIndex,max(burstMaxBins)); isEbb = zeros(burstEndIndex,max(burstMaxBins));
+for burstCtr = burstStartIndex:burstEndIndex
+    meanVelNorth = mean(velNorth(burstCtr,1:burstMaxBins(burstCtr)));
+    if meanVelNorth >= 0, isFlood(burstCtr,:) = 1; else isEbb(burstCtr,:) = 1; end
+end
+passNumsFlood = passStatyTestCheck(ITSStruc(1).isStationary,burstMaxBins,burstStartIndex,burstEndIndex,isFlood);
+passNumsEbb = passStatyTestCheck(ITSStruc(1).isStationary,burstMaxBins,burstStartIndex,burstEndIndex,isEbb);
+
+fprintf("Proportion of flood bursts passing velocity stationarity test A is %3.3f \r", passNumsFlood.velPassP95Test/passNumsFlood.numRecords)
+fprintf("Proportion of flood bursts passing velocity stationarity test B is %3.3f \r", passNumsFlood.velPassSlopeTest/passNumsFlood.numRecords)
+fprintf("Proportion of flood bursts passing TKE stationarity test A is %3.3f \r", passNumsFlood.TKEPassP95Test/passNumsFlood.numRecords)
+fprintf("Proportion of flood bursts passing TKE stationarity test B is %3.3f \r", passNumsFlood.TKEPassSlopeTest/passNumsFlood.numRecords)
+
+fprintf("Proportion of ebb bursts passing velocity stationarity test A is %3.3f \r", passNumsEbb.velPassP95Test/passNumsEbb.numRecords)
+fprintf("Proportion of ebb bursts passing velocity stationarity test B is %3.3f \r", passNumsEbb.velPassSlopeTest/passNumsEbb.numRecords)
+fprintf("Proportion of ebb bursts passing TKE stationarity test A is %3.3f \r", passNumsEbb.TKEPassP95Test/passNumsEbb.numRecords)
+fprintf("Proportion of ebb bursts passing TKE stationarity test B is %3.3f \r", passNumsEbb.TKEPassSlopeTest/passNumsEbb.numRecords)
+
+meanVelMag = velMag; meanVelMag(meanVelMag == 0) = NaN;
+meanVelMag = nanmean(meanVelMag,1)';
+8
